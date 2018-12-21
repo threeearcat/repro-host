@@ -29,6 +29,7 @@
 #include "cpuid.h"
 #include "pmu.h"
 #include "hyperv.h"
+#include "hcall.h"
 
 #include <linux/clocksource.h>
 #include <linux/interrupt.h>
@@ -6849,6 +6850,11 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 	}
 
 	if (kvm_x86_ops->get_cpl(vcpu) != 0) {
+		// Hypercall
+		if (nr == HCALL_RAX_ID) {
+			vcpu->run->exit_reason = exit_reason_tbl[a0];
+			vcpu->run->hypercall.args[0] = a1;
+		}
 		ret = -KVM_EPERM;
 		goto out;
 	}
