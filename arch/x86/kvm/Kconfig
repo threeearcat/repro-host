@@ -100,4 +100,9 @@ config KVM_MMU_AUDIT
 # the virtualization menu.
 source drivers/vhost/Kconfig
 
+config KVM_USER_HYPERCALL
+    bool "Allow hypercall for userspace program"
+    depends on KVM && KVM_INTEL
+	default y
+
 endif # VIRTUALIZATION
