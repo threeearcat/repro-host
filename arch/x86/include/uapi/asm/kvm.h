@@ -375,6 +375,14 @@ struct kvm_sync_regs {
 	struct kvm_vcpu_events events;
 };
 
+#ifdef CONFIG_KVM_VMX_PT
+/* vmx_pt */
+struct vmx_pt_filter_iprs {
+ 	__u64 a;
+ 	__u64 b;
+};
+#endif
+
 #define KVM_X86_QUIRK_LINT0_REENABLED	(1 << 0)
 #define KVM_X86_QUIRK_CD_NW_CLEARED	(1 << 1)
 

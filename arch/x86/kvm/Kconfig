@@ -105,4 +105,11 @@ config KVM_USER_HYPERCALL
     depends on KVM && KVM_INTEL
 	default y
 
+config KVM_VMX_PT
+	bool "KVM extension for Intel Processor Trace"
+	depends on KVM_INTEL
+    default y
+	---help---
+	 Provides support for Intel Processor Trace in vmx mode.
+
 endif # VIRTUALIZATION

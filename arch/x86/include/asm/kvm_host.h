@@ -1095,6 +1095,11 @@ struct kvm_x86_ops {
 	int (*mem_enc_unreg_region)(struct kvm *kvm, struct kvm_enc_region *argp);
 
 	int (*get_msr_feature)(struct kvm_msr_entry *entry);
+
+#ifdef CONFIG_KVM_VMX_PT
+ 	int (*setup_trace_fd)(struct kvm_vcpu *vcpu);
+ 	int (*vmx_pt_enabled)(void);
+#endif
 };
 
 struct kvm_arch_async_pf {

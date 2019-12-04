@@ -3038,6 +3038,12 @@ long kvm_arch_dev_ioctl(struct file *filp,
 		r = msr_io(NULL, argp, do_get_msr_feature, 1);
 		break;
 	}
+#ifdef CONFIG_KVM_VMX_PT
+ 	case KVM_VMX_PT_SUPPORTED: {
+ 		r = kvm_x86_ops->vmx_pt_enabled();
+ 		break;
+ 	}
+#endif
 	default:
 		r = -EINVAL;
 	}
@@ -3961,6 +3967,12 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		r = kvm_vcpu_ioctl_enable_cap(vcpu, &cap);
 		break;
 	}
+#ifdef CONFIG_KVM_VMX_PT
+ 	case KVM_VMX_PT_SETUP_FD: {
+ 		r = kvm_x86_ops->setup_trace_fd(vcpu);
+ 		break;
+ 	}
+#endif
 	default:
 		r = -EINVAL;
 	}

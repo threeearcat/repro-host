@@ -58,6 +58,10 @@
 #include "pmu.h"
 #include "vmx_evmcs.h"
 
+#ifdef CONFIG_KVM_VMX_PT
+#include "vmx_pt.h"
+#endif
+
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
 #define __ex_clear(x, reg) \
 	____kvm_handle_fault_on_reboot(x, "xor " reg " , " reg)
@@ -758,6 +762,9 @@ static inline int pi_test_sn(struct pi_desc *pi_desc)
 }
 
 struct vcpu_vmx {
+#ifdef CONFIG_KVM_VMX_PT
+ 	struct vcpu_vmx_pt*   vmx_pt_config;
+#endif
 	struct kvm_vcpu       vcpu;
 	unsigned long         host_rsp;
 	u8                    fail;
@@ -2425,7 +2432,7 @@ static void add_atomic_switch_msr_special(struct vcpu_vmx *vmx,
 	vm_exit_controls_setbit(vmx, exit);
 }
 
-static void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
+void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
 				  u64 guest_val, u64 host_val)
 {
 	unsigned i;
@@ -9976,6 +9983,9 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long cr3, cr4, evmcs_rsp;
+#ifdef CONFIG_KVM_VMX_PT
+ 	vmx_pt_vmentry(vmx->vmx_pt_config);
+#endif
 
 	/* Record the guest's net vcpu time for enforced NMI injections. */
 	if (unlikely(!enable_vnmi &&
@@ -10244,6 +10254,10 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	vmx_complete_atomic_exit(vmx);
 	vmx_recover_nmi_blocking(vmx);
 	vmx_complete_interrupts(vmx);
+
+#ifdef CONFIG_KVM_VMX_PT
+    vmx_pt_vmexit(vmx->vmx_pt_config);
+#endif
 }
 STACK_FRAME_NON_STANDARD(vmx_vcpu_run);
 
@@ -10297,6 +10311,10 @@ static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 	leave_guest_mode(vcpu);
 	vmx_free_vcpu_nested(vcpu);
 	free_loaded_vmcs(vmx->loaded_vmcs);
+#ifdef CONFIG_KVM_VMX_PT
+ 	/* free vmx_pt */
+ 	vmx_pt_destroy(vmx, &(vmx->vmx_pt_config));
+#endif
 	kfree(vmx->guest_msrs);
 	kvm_vcpu_uninit(vcpu);
 	kmem_cache_free(kvm_vcpu_cache, vmx);
@@ -10387,6 +10405,10 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	vmx->pi_desc.nv = POSTED_INTR_VECTOR;
 	vmx->pi_desc.sn = 1;
 
+#ifdef CONFIG_KVM_VMX_PT
+ 	/* enable vmx_pt */
+ 	vmx_pt_setup(vmx, &(vmx->vmx_pt_config));
+#endif
 	return &vmx->vcpu;
 
 free_vmcs:
@@ -11464,7 +11486,7 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	/* vmcs12's VM_ENTRY_LOAD_IA32_EFER and VM_ENTRY_IA32E_MODE are
 	 * emulated by vmx_set_efer(), below.
 	 */
-	vm_entry_controls_init(vmx, 
+	vm_entry_controls_init(vmx,
 		(vmcs12->vm_entry_controls & ~VM_ENTRY_LOAD_IA32_EFER &
 			~VM_ENTRY_IA32E_MODE) |
 		(vmcs_config.vmentry_ctrl & ~VM_ENTRY_IA32E_MODE));
@@ -12501,7 +12523,7 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 
 		return;
 	}
-	
+
 	/*
 	 * After an early L2 VM-entry failure, we're now back
 	 * in L1 which thinks it just finished a VMLAUNCH or
@@ -12997,6 +13019,16 @@ static int enable_smi_window(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+#ifdef CONFIG_KVM_VMX_PT
+static int vmx_pt_setup_fd(struct kvm_vcpu *vcpu){
+ 	return vmx_pt_create_fd(to_vmx(vcpu)->vmx_pt_config);
+}
+
+static int vmx_pt_is_enabled(void){
+ 	return vmx_pt_enabled();
+}
+#endif
+
 static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.cpu_has_kvm_support = cpu_has_kvm_support,
 	.disabled_by_bios = vmx_disabled_by_bios,
@@ -13135,6 +13167,10 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.pre_enter_smm = vmx_pre_enter_smm,
 	.pre_leave_smm = vmx_pre_leave_smm,
 	.enable_smi_window = enable_smi_window,
+#ifdef CONFIG_KVM_VMX_PT
+ 	.setup_trace_fd = vmx_pt_setup_fd,
+ 	.vmx_pt_enabled = vmx_pt_is_enabled,
+#endif
 };
 
 static int __init vmx_init(void)
@@ -13181,6 +13217,9 @@ static int __init vmx_init(void)
 #endif
 	vmx_check_vmcs12_offsets();
 
+#ifdef CONFIG_KVM_VMX_PT
+ 	vmx_pt_init();
+#endif
 	return 0;
 }
 
@@ -13214,6 +13253,10 @@ static void __exit vmx_exit(void)
 
 		static_branch_disable(&enable_evmcs);
 	}
+#endif
+
+#ifdef CONFIG_KVM_VMX_PT
+      vmx_pt_exit();
 #endif
 }
 
