@@ -657,12 +657,14 @@ static inline void vmx_pt_setup_vmx_autoload_msr(struct vcpu_vmx_pt *vmx_pt_conf
 
 #ifdef DEBUG
 	printk("GUEST: %llx\n", guest_val);
+	printk("HOST : %llx\n", host_val);
 	PRINT_INFO("MSR_IA32_RTIT_CTL guest features:");
 	vmx_pt_print_msrs(guest_val);
 	PRINT_INFO("MSR_IA32_RTIT_CTL host features:");
 	vmx_pt_print_msrs(host_val);
 #endif
-	add_atomic_switch_msr(vmx_pt_config->vmx, MSR_IA32_RTIT_CTL, guest_val, host_val);
+    if (guest_val != host_val)
+        add_atomic_switch_msr(vmx_pt_config->vmx, MSR_IA32_RTIT_CTL, guest_val, host_val);
 }
 
 void vmx_pt_enable(struct vcpu_vmx_pt *vmx_pt_config){
